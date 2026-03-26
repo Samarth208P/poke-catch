@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="frontend/public/pokecatch.png" alt="PokeCatch Logo" width="300" />
+</div>
+
 # 🎮 PokeCatch: Premium Sui-Powered Loot Box Game
 
 [![Live Demo](https://img.shields.io/badge/demo-live-green?style=for-the-badge)](https://pokecatch.vercel.app/)
