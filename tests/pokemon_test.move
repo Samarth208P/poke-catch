@@ -1,7 +1,7 @@
 #[test_only]
-module loot_box::pokemon_tests;
+module loot_box_v2::pokemon_tests;
 
-use loot_box::pokemon::{Self, GameConfig, AdminCap, Pokeball, Pokemon};
+use loot_box_v2::pokemon::{Self, GameConfig, AdminCap, Pokeball, Pokemon};
 use std::string;
 use sui::coin::{Self, Coin};
 use sui::random::{Self, Random};
@@ -170,7 +170,7 @@ fun test_purchase_overpayment_refunded() {
 }
 
 #[test]
-#[expected_failure(abort_code = 0, location = loot_box::pokemon)]
+#[expected_failure(abort_code = 0, location = loot_box_v2::pokemon)]
 fun test_purchase_insufficient_payment_aborts() {
     let mut scenario = ts::begin(ADMIN);
     setup_game(&mut scenario);
@@ -305,7 +305,7 @@ fun test_burn_item_removes_it() {
 // =========================================================================
 
 #[test]
-#[expected_failure(abort_code = 1, location = loot_box::pokemon)]
+#[expected_failure(abort_code = 1, location = loot_box_v2::pokemon)]
 fun test_update_weights_invalid_sum_aborts() {
     let mut scenario = ts::begin(ADMIN);
     setup_game(&mut scenario);

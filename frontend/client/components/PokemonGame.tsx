@@ -40,7 +40,15 @@ interface CaughtPokemon {
 
 type SortOption = "rarity" | "level" | "stats" | "number";
 
-export function PokemonGame() {
+export function PokemonGame({ 
+  externalViewingAddress, 
+  onViewChange, 
+  friends = [] 
+}: { 
+  externalViewingAddress?: string, 
+  onViewChange: (addr: string) => void, 
+  friends?: { name: string, address: string }[] 
+}) {
   const account = useCurrentAccount();
   const suiClient = useSuiClient();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
@@ -58,32 +66,10 @@ export function PokemonGame() {
   const [viewMode, setViewMode] = useState<"enlarge" | "compact">("compact");
   const [selectedPokemon, setSelectedPokemon] = useState<CaughtPokemon | null>(null);
 
-  // Friends Feature State
-  const [friends, setFriends] = useState<{ name: string, address: string }[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem("pokeFriends");
-      if (saved) return JSON.parse(saved);
-    }
-    return [];
-  });
-  const [viewingAddress, setViewingAddress] = useState<string>("");
-  const [showAddFriend, setShowAddFriend] = useState(false);
-  const [newFriendName, setNewFriendName] = useState("");
-  const [newFriendAddress, setNewFriendAddress] = useState("");
+  // Sync viewingAddress with prop or default to account
+  const viewingAddress = externalViewingAddress || account?.address || "";
+  const setViewingAddress = onViewChange;
 
-  // Save friends to LocalStorage
-  useEffect(() => {
-    localStorage.setItem("pokeFriends", JSON.stringify(friends));
-  }, [friends]);
-
-  // Handle Default Viewing Address
-  useEffect(() => {
-    if (account?.address && !viewingAddress) {
-      setViewingAddress(account.address);
-    } else if (!account?.address && viewingAddress === account?.address) {
-      setViewingAddress("");
-    }
-  }, [account]);
 
   const refreshPokemon = async () => {
     const targetAddress = viewingAddress || account?.address;
@@ -433,111 +419,6 @@ export function PokemonGame() {
 
       <div className="max-w-7xl mx-auto relative z-10">
 
-        {/* Top Info Cards - Compacted layout */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
-          <Card className="bg-white poke-border text-center py-2 flex flex-col justify-center">
-            <CardContent className="p-0 pb-1">
-              <p className="text-slate-500 font-black text-[10px] sm:text-xs mb-0.5 uppercase tracking-widest">Price</p>
-              <p className="text-sm sm:text-lg font-black text-slate-800">0.01 SUI</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-white poke-border text-center py-2 flex flex-col justify-center relative group overflow-hidden">
-            <CardContent className="p-0 pb-1">
-              <p className="text-slate-500 font-black text-[10px] sm:text-xs mb-0.5 uppercase tracking-widest">Friends</p>
-              <p className="text-sm sm:text-lg font-black text-blue-500">{friends.length} Added</p>
-            </CardContent>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowAddFriend(true);
-              }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-blue-500 rounded-lg text-white shadow-sm hover:bg-blue-400 transition-all hover:scale-110 active:scale-95"
-              title="Add a Friend"
-            >
-              <Plus className="w-3.5 h-3.5" strokeWidth={4} />
-            </button>
-          </Card>
-          <Card className="bg-white poke-border text-center py-2 flex flex-col justify-center">
-            <CardContent className="p-0 pb-1">
-              <p className="text-slate-500 font-black text-[10px] sm:text-xs mb-0.5 uppercase tracking-widest">Caught</p>
-              <p className="text-sm sm:text-lg font-black text-emerald-500">{caughtPokemon.length}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Add Friend UI */}
-        {showAddFriend && (
-          <Card className="bg-slate-100 border-4 border-slate-800 shadow-[4px_4px_0px_#1e293b] mb-6 p-5 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-300">
-            <h3 className="font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-500" />
-              Add a Trainer
-            </h3>
-            <div className="flex flex-col sm:flex-row gap-4 items-end">
-              <div className="flex-1 w-full">
-                <label className="text-xs font-black text-slate-500 mb-1 block uppercase tracking-wider">Friend's Name / Alias</label>
-                <input
-                  type="text"
-                  className="w-full border-2 border-slate-800 shadow-[2px_2px_0px_#1e293b] rounded-xl px-4 py-2 font-bold text-slate-700 outline-none focus:border-blue-500 focus:shadow-[2px_2px_0px_#3b82f6]"
-                  value={newFriendName}
-                  onChange={e => setNewFriendName(e.target.value)}
-                  placeholder="e.g. Ash Ketchum"
-                />
-              </div>
-              <div className="flex-[2] w-full">
-                <label className="text-xs font-black text-slate-500 mb-1 block uppercase tracking-wider">Sui Wallet Address</label>
-                <input
-                  type="text"
-                  className="w-full border-2 border-slate-800 shadow-[2px_2px_0px_#1e293b] rounded-xl px-4 py-2 font-mono font-bold text-slate-700 outline-none focus:border-blue-500 focus:shadow-[2px_2px_0px_#3b82f6]"
-                  value={newFriendAddress}
-                  onChange={e => setNewFriendAddress(e.target.value)}
-                  placeholder="0x..."
-                />
-              </div>
-              <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                {account?.address && !friends.some(f => f.address === account.address) && (
-                  <Button
-                    onClick={() => {
-                      setNewFriendName("My Other Account");
-                      setNewFriendAddress(account.address);
-                    }}
-                    variant="outline"
-                    className="flex-1 bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-black py-2 px-6 rounded-xl border-2 border-slate-900 shadow-[4px_4px_0px_rgba(0,0,0,1)] uppercase tracking-widest"
-                  >
-                    Use Me
-                  </Button>
-                )}
-                <Button
-                  onClick={() => setShowAddFriend(false)}
-                  className="flex-1 bg-slate-300 hover:bg-slate-400 text-slate-800 font-black py-2 px-6 rounded-xl border-2 border-slate-900 shadow-[4px_4px_0px_rgba(0,0,0,1)] uppercase tracking-widest"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => {
-                    const cleanAddress = newFriendAddress.trim();
-                    if (friends.some(f => f.address.toLowerCase() === cleanAddress.toLowerCase())) {
-                      return toast.error("This trainer is already in your watchlist!");
-                    }
-                    if (newFriendName && cleanAddress.length >= 40) {
-                      setFriends([...friends, { name: newFriendName, address: cleanAddress }]);
-                      setNewFriendName("");
-                      setNewFriendAddress("");
-                      setViewingAddress(cleanAddress);
-                      setShowAddFriend(false);
-                      toast.success(`${newFriendName} added to Watchlist!`);
-                    } else {
-                      toast.error("Please enter a valid name and Sui address.");
-                    }
-                  }}
-                  className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-black py-2 px-6 rounded-xl border-2 border-slate-900 shadow-[4px_4px_0px_rgba(0,0,0,1)] uppercase tracking-widest"
-                >
-                  Save Friend
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
-
         {/* Wild Encounter Box - Hidden when viewing friends PC */}
         {isViewingOwnPC && (
           <Card className="bg-white poke-border mb-6 overflow-hidden">
@@ -584,38 +465,46 @@ export function PokemonGame() {
         )}
 
         {/* PC Box Area */}
-        <div className="mt-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 gap-4">
-
-            {/* Friends / View Selector header */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <h2 className="text-xl sm:text-2xl font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
-                <span className={`w-3 sm:w-4 h-6 sm:h-8 rounded-sm block border-2 border-slate-800 shadow-[2px_2px_0px_#1e293b] ${isViewingOwnPC ? 'bg-red-500' : 'bg-blue-500'}`}></span>
-                {isViewingOwnPC ? "My PC Box" : "Friend's PC"} ({caughtPokemon.length})
-              </h2>
+        <div className="mt-8">
+          <div className="bg-white border-4 border-slate-900 shadow-[8px_8px_0px_#1e293b] rounded-3xl p-4 sm:p-5 mb-8 flex flex-col xl:flex-row justify-between items-center gap-5">
+            
+            {/* Left: Title & Account Selector */}
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto justify-between xl:justify-start">
+              <div className="flex items-center gap-4">
+                <div className={`w-14 h-14 rounded-2xl border-4 border-slate-900 shadow-[4px_4px_0px_#1e293b] flex items-center justify-center shrink-0 ${isViewingOwnPC ? 'bg-red-500' : 'bg-blue-500'}`}>
+                  <LayoutGrid className="w-7 h-7 text-white" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-800 uppercase tracking-widest leading-none mb-1">
+                    {isViewingOwnPC ? "My PC Box" : "Friend's PC"}
+                  </h2>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-md border-2 border-slate-200">
+                    {caughtPokemon.length} Pokémon Stored
+                  </span>
+                </div>
+              </div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex items-center gap-2 bg-white px-3 py-1.5 h-auto font-bold border-2 border-slate-800 shadow-[3px_3px_0px_#1e293b] hover:bg-slate-50 transition-all rounded-xl min-w-[180px] justify-between"
+                    className="flex items-center gap-2 bg-slate-50 px-4 py-2 h-[44px] font-bold border-2 border-slate-300 shadow-[3px_3px_0px_#cbd5e1] hover:bg-slate-100 transition-all rounded-xl min-w-[180px] justify-between xl:ml-4"
                   >
                     <div className="flex items-center gap-2 overflow-hidden">
-                      <Users className="w-4 h-4 text-blue-500 shrink-0" />
+                      <Users className="w-4 h-4 text-slate-500 shrink-0" />
                       <span className="truncate text-slate-700 text-sm uppercase tracking-wider">
                         {isViewingOwnPC
                           ? "My Account"
                           : (friends.find(f => f.address === viewingAddress)?.name || (viewingAddress?.slice(0, 6) + "..." + viewingAddress?.slice(-4)))}
                       </span>
                     </div>
-                    <svg className="h-4 w-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <ArrowDownUp className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64 bg-white poke-border border-4 border-slate-900 shadow-[6px_6px_0px_#1e293b] rounded-2xl p-2 mt-1">
                   <DropdownMenuItem
                     onClick={() => {
                       setViewingAddress(account?.address || "");
-                      setShowAddFriend(false);
                     }}
                     className={`flex items-center justify-between p-3 font-bold text-slate-700 hover:bg-blue-50 cursor-pointer rounded-lg uppercase text-[10px] tracking-widest ${isViewingOwnPC ? 'bg-blue-50 border-2 border-blue-200' : ''}`}
                   >
@@ -631,7 +520,6 @@ export function PokemonGame() {
                       key={f.address}
                       onClick={() => {
                         setViewingAddress(f.address);
-                        setShowAddFriend(false);
                       }}
                       className={`flex flex-col items-start p-3 font-bold text-slate-700 hover:bg-blue-50 cursor-pointer rounded-lg uppercase text-[10px] tracking-widest ${viewingAddress === f.address ? 'bg-blue-50 border-2 border-blue-200' : ''}`}
                     >
@@ -642,29 +530,22 @@ export function PokemonGame() {
                       <span className="text-[9px] font-mono text-slate-400 mt-0.5 normal-case">{f.address.slice(0, 8)}...{f.address.slice(-6)}</span>
                     </DropdownMenuItem>
                   ))}
-
-                  <div className="my-1 border-t-2 border-slate-100" />
-                  <DropdownMenuItem
-                    onClick={() => setShowAddFriend(true)}
-                    className="flex items-center gap-2 p-3 font-black text-blue-600 hover:bg-blue-100 cursor-pointer rounded-lg uppercase text-[10px] tracking-widest"
-                  >
-                    <Plus className="w-3.5 h-3.5 shrink-0" strokeWidth={4} /> Watch a Trainer...
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-start md:self-auto">
+            {/* Right: View & Sort Controls */}
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 w-full xl:w-auto bg-slate-100/80 p-2 sm:p-2.5 rounded-2xl border-2 border-slate-200">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setViewMode(prev => prev === "enlarge" ? "compact" : "enlarge")}
-                className="font-bold border-2 border-slate-800 shadow-[2px_2px_0px_#1e293b] bg-white hover:bg-slate-100 transition-colors h-9"
+                className="font-black bg-white border-2 border-slate-300 shadow-[2px_2px_0px_#cbd5e1] rounded-xl hover:bg-slate-50 transition-all h-10 text-slate-600 uppercase tracking-wider text-[11px]"
               >
                 {viewMode === "enlarge" ? (
-                  <><Grip className="w-4 h-4 mr-2" /> Compact</>
+                  <><Grip className="w-4 h-4 mr-1.5" /> Compact</>
                 ) : (
-                  <><LayoutGrid className="w-4 h-4 mr-2" /> Enlarge</>
+                  <><LayoutGrid className="w-4 h-4 mr-1.5" /> Enlarge</>
                 )}
               </Button>
 
@@ -673,9 +554,13 @@ export function PokemonGame() {
                 size="sm"
                 onClick={() => setShowAllStats(!showAllStats)}
                 disabled={viewMode === "compact"}
-                className={`font-bold border-2 border-slate-800 shadow-[2px_2px_0px_#1e293b] transition-colors h-9 ${showAllStats && viewMode === "enlarge" ? 'bg-slate-200' : 'bg-white'} ${viewMode === "compact" ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`font-black border-2 shadow-[2px_2px_0px_#cbd5e1] rounded-xl transition-all h-10 uppercase tracking-wider text-[11px] ${
+                  showAllStats && viewMode === "enlarge" 
+                    ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-[2px_2px_0px_#93c5fd]' 
+                    : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                } ${viewMode === "compact" ? "opacity-50 cursor-not-allowed shadow-none" : ""}`}
               >
-                <BarChart3 className="w-4 h-4 mr-2" />
+                <BarChart3 className="w-4 h-4 mr-1.5" />
                 <span className="hidden sm:inline">{showAllStats ? "Hide Stats" : "Show Stats"}</span>
                 <span className="sm:hidden">Stats</span>
               </Button>
@@ -685,13 +570,12 @@ export function PokemonGame() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-2 font-black border-2 border-slate-800 shadow-[2px_2px_0px_#1e293b] bg-white h-9 min-w-[140px] sm:min-w-[170px] justify-between uppercase tracking-wider text-[11px]"
+                    className="flex items-center gap-2 font-black bg-white border-2 border-slate-300 shadow-[2px_2px_0px_#cbd5e1] rounded-xl h-10 min-w-[140px] justify-between uppercase tracking-wider text-[11px] hover:bg-slate-50 transition-all text-slate-600"
                   >
-                    <div className="flex items-center gap-2">
-                      <ArrowDownUp className="h-3.5 w-3.5 text-slate-600" />
-                      Sort: {sortBy === "rarity" ? "Rarity" : sortBy === "level" ? "Level" : sortBy === "stats" ? "Total Stats" : "Pokédex #"}
+                    <div className="flex items-center gap-1.5">
+                      <ArrowDownUp className="h-3.5 w-3.5" />
+                      Sort: {sortBy === "rarity" ? "Rarity" : sortBy === "level" ? "Level" : sortBy === "stats" ? "Total" : "Dex #"}
                     </div>
-                    <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent

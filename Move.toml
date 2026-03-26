@@ -1,9 +1,9 @@
 [package]
-name = "loot_box"
+name = "loot_box_v2"
 edition = "2024"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet" }
 
 [addresses]
-loot_box = "0x8e9eecc6d777bab581706dd00571825968bf6f30e8ebed4d1495a90c154085de"
+loot_box_v2 = "0x01359f04eea1ed67e698794f092d280e23ced49ff66e24956c18e31e9e33ca0c"

@@ -29,7 +29,7 @@
 /// - Fixed price: 0.01 SUI per Pokeball
 /// - Treasury accumulates all payments
 /// - Admin can withdraw treasury funds
-module loot_box::pokemon;
+module loot_box_v2::pokemon;
 
 use std::string::{Self, String};
 use sui::balance::{Self, Balance};
@@ -527,18 +527,21 @@ fun catch_pokemon_internal<T>(
             pity = 0;
             RARITY_LEGENDARY
         } else {
-            pity = pity + 1;
             let roll = random::generate_u8_in_range(&mut gen, 0, 99);
             let w1 = config.weight_common;
             let w2 = w1 + config.weight_rare;
             let w3 = w2 + config.weight_epic;
             if (roll < w1) {
+                pity = pity + 1;
                 RARITY_COMMON
             } else if (roll < w2) {
+                pity = pity + 1;
                 RARITY_RARE
             } else if (roll < w3) {
+                pity = pity + 1;
                 RARITY_EPIC
             } else {
+                pity = 0;
                 RARITY_LEGENDARY
             }
         };
