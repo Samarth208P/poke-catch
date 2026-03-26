@@ -612,55 +612,75 @@ export function PokemonGame({
           </div>
 
           {sortedPokemon.length === 0 ? (
-            <Card className="bg-white poke-border text-center py-12">
-              <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" className="w-12 h-12 mx-auto mb-4 opacity-30 pixelated grayscale" />
-              <p className="text-slate-500 font-bold text-base">This PC box is currently empty.</p>
-            </Card>
-          ) : viewMode === "compact" ? (
-            <div className="flex flex-wrap justify-center gap-3 sm:gap-4 bg-white/50 backdrop-blur-sm p-5 sm:p-6 rounded-xl border-4 border-slate-800 shadow-[4px_4px_0px_#1e293b]">
-              {sortedPokemon.map((pokemon) => (
-                <button
-                  key={pokemon.id}
-                  onClick={() => setSelectedPokemon(pokemon)}
-                  className="w-[72px] h-[72px] sm:w-[88px] sm:h-[88px] md:w-24 md:h-24 bg-white border-2 rounded-lg hover:bg-blue-50 hover:-translate-y-1 transition-all flex items-center justify-center p-2 relative group"
-                  style={{
-                    borderColor: getRarityColor(pokemon.rarityTier),
-                    boxShadow: `2px 2px 0px ${getRarityColor(pokemon.rarityTier)}`
-                  }}
-                >
-                  <div className="absolute -top-2 -right-2 bg-slate-800 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                    Lv.{pokemon.level}
-                  </div>
-                  <img src={pokemon.imageUrl} alt={pokemon.name} className="w-full h-full object-contain pixelated" />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {sortedPokemon.map((pokemon) => (
-                <PokemonCard
-                  key={pokemon.id}
-                  id={pokemon.id}
-                  pokemonId={pokemon.pokemonId}
-                  name={pokemon.name}
-                  pokemonType={pokemon.pokemonType}
-                  rarityTier={pokemon.rarityTier}
-                  level={pokemon.level}
-                  imageUrl={pokemon.imageUrl}
-                  stats={{
-                    hp: pokemon.hp,
-                    attack: pokemon.attack,
-                    defense: pokemon.defense,
-                    spAttack: pokemon.sp_attack,
-                    spDefense: pokemon.sp_defense,
-                    speed: pokemon.speed,
-                  }}
-                  onBurn={isViewingOwnPC ? () => handleReleasePokemon(pokemon.id) : undefined}
-                  forceShowStats={showAllStats}
-                />
-              ))}
-            </div>
-          )}
+    <Card className="bg-white poke-border text-center py-12">
+      <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" className="w-12 h-12 mx-auto mb-4 opacity-30 pixelated grayscale" />
+      <p className="text-slate-500 font-bold text-base">This PC box is currently empty.</p>
+    </Card>
+  ) : viewMode === "compact" ? (
+    <div className="flex flex-wrap justify-center gap-3 sm:gap-4 bg-white/50 backdrop-blur-sm p-5 sm:p-6 rounded-xl border-4 border-slate-800 shadow-[4px_4px_0px_#1e293b]">
+      {sortedPokemon.map((pokemon) => (
+        <button
+          key={pokemon.id}
+          onClick={() => setSelectedPokemon(pokemon)}
+          className="w-[72px] h-[72px] sm:w-[88px] sm:h-[88px] md:w-24 md:h-24 bg-white border-2 rounded-lg hover:bg-blue-50 hover:-translate-y-1 transition-all flex items-center justify-center p-2 relative group"
+          style={{
+            borderColor: getRarityColor(pokemon.rarityTier),
+            boxShadow: `2px 2px 0px ${getRarityColor(pokemon.rarityTier)}`
+          }}
+        >
+          <div className="absolute -top-2 -right-2 bg-slate-800 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+            Lv.{pokemon.level}
+          </div>
+          <img src={pokemon.imageUrl} alt={pokemon.name} className="w-full h-full object-contain pixelated" />
+        </button>
+      ))}
+    </div>
+  ) : (
+    /* ENLARGED MODE: Intercepting clicks with onClickCapture to prioritize the modal */
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      {sortedPokemon.map((pokemon) => (
+        <div 
+          key={pokemon.id} 
+          onClickCapture={(e) => {
+            // Check if the clicked element (or its parent) is a button
+            const target = e.target as HTMLElement;
+            if (target.closest('button')) {
+              return; // It's a button (like "Release"), let it do its thing
+            }
+            
+            // It's NOT a button, so block the explorer link and open the modal instead
+            e.preventDefault();
+            e.stopPropagation();
+            setSelectedPokemon(pokemon);
+          }}
+          className="cursor-pointer transition-transform hover:-translate-y-1 active:scale-[0.98]"
+        >
+          <PokemonCard
+            id={pokemon.id}
+            pokemonId={pokemon.pokemonId}
+            name={pokemon.name}
+            pokemonType={pokemon.pokemonType}
+            rarityTier={pokemon.rarityTier}
+            level={pokemon.level}
+            imageUrl={pokemon.imageUrl}
+            stats={{
+              hp: pokemon.hp,
+              attack: pokemon.attack,
+              defense: pokemon.defense,
+              spAttack: pokemon.sp_attack,
+              spDefense: pokemon.sp_defense,
+              speed: pokemon.speed,
+            }}
+            onBurn={isViewingOwnPC ? (e: any) => {
+              if (e && e.stopPropagation) e.stopPropagation();
+              handleReleasePokemon(pokemon.id);
+            } : undefined}
+            forceShowStats={showAllStats}
+          />
+        </div>
+      ))}
+    </div>
+  )}
         </div>
       </div>
     </div>
