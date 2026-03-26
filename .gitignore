@@ -1,0 +1,8 @@
+build/*
+traces/*
+.trace
+.coverage*
+.txt
+.vscode
+.agent
+.agent/*
