@@ -45,41 +45,69 @@ use sui::sui::SUI;
 // Structs
 // =========================================================================
 
+/// One-time witness for the package to initialize publishing.
 public struct POKEMON has drop {}
 
+/// Capability granting administrative rights such as updating game weights and withdrawing funds.
 public struct AdminCap has key {
     id: UID,
 }
 
+/// Global configuration for the Pokemon Loot Box game.
+/// Stores pricing, rarity weights, and the accumulated treasury.
 public struct GameConfig<phantom T> has key {
     id: UID,
+    /// Price in the specified coin type `T` for one Pokeball.
     price: u64,
+    /// Probability weight for Common (out of 100).
     weight_common: u8,
+    /// Probability weight for Rare (out of 100).
     weight_rare: u8,
+    /// Probability weight for Epic (out of 100).
     weight_epic: u8,
+    /// Probability weight for Legendary (out of 100).
     weight_legendary: u8,
+    /// Accumulated balance from Pokeball purchases.
     treasury: Balance<T>,
 }
 
+/// Represents an unopened loot box (Pokeball).
+/// Can be "opened" using the catch functions to receive a Pokemon NFT.
 public struct Pokeball has key {
     id: UID,
 }
 
+/// The Pokemon NFT representing a caught creature.
+/// Stores gameplay stats, rarity, and metadata for on-chain display.
 public struct Pokemon has key, store {
     id: UID,
+    /// The Pokedex ID of the Pokemon.
     pokemon_id: u32,
+    /// Display name of the Pokemon.
     name: String,
+    /// Rarity tier: 1=Common, 2=Rare, 3=Epic, 4=Legendary.
     rarity_tier: u8,
+    /// Current level (1-50).
     level: u8,
+    /// Health Points stat.
     hp: u8,
+    /// Physical Attack stat.
     attack: u8,
+    /// Physical Defense stat.
     defense: u8,
+    /// Special Attack stat.
     sp_attack: u8,
+    /// Special Defense stat.
     sp_defense: u8,
+    /// Speed stat.
     speed: u8,
+    /// URL to the official artwork sprite.
     image_url: String,
+    /// The epoch timestamp when this Pokemon was caught.
     caught_at: u64,
+    /// The address of the trainer who first caught this Pokemon.
     original_trainer: address,
+    /// The address of the trainer who most recently owned/sent this Pokemon.
     last_sender: address,
 }
 
@@ -87,7 +115,8 @@ public struct Pokemon has key, store {
 // Events
 // =========================================================================
 
-// UPGRADED: Now includes all stats and image_url so the frontend doesn't need an API
+/// Event emitted whenever a new Pokemon is caught.
+/// Includes all stats and image_url for rich frontend rendering.
 public struct PokemonCaught has copy, drop {
     object_id: ID,
     pokemon_id: u32,
@@ -105,6 +134,7 @@ public struct PokemonCaught has copy, drop {
     last_sender: address,
 }
 
+/// Event emitted when a user buys one or more Pokeballs.
 public struct PokeballsPurchased has copy, drop {
     trainer: address,
     quantity: u64,
@@ -163,24 +193,31 @@ const DEFAULT_W_EPIC: u8 = 12;
 const DEFAULT_W_LEGENDARY: u8 = 3;
 const PITY_THRESHOLD: u64 = 30;
 
+// Rarity Tier IDs
 const RARITY_COMMON: u8 = 1;
 const RARITY_RARE: u8 = 2;
 const RARITY_EPIC: u8 = 3;
 const RARITY_LEGENDARY: u8 = 4;
 
+// Error Codes
+/// Incorrect payment amount provided.
 const EInvalidPayment: u64 = 0;
+/// Total weight of all rarity tiers must equal 100.
 const ERarityWeightsTotal: u64 = 1;
 
 // =========================================================================
 // Initialization
 // =========================================================================
 
+/// Standard Move contract initializer. Claims the publisher and sets up display.
 fun init(otw: POKEMON, ctx: &mut TxContext) {
     let publisher = package::claim(otw, ctx);
     init_game_with_display<SUI>(&publisher, ctx);
     transfer::public_transfer(publisher, ctx.sender());
 }
 
+/// Initializes the game configuration and creates the AdminCap.
+/// This version is generic over a coin type `T`.
 public fun init_game<T>(ctx: &mut TxContext) {
     transfer::transfer(
         AdminCap { id: object::new(ctx) },
@@ -197,6 +234,8 @@ public fun init_game<T>(ctx: &mut TxContext) {
     });
 }
 
+/// Initializes the game and sets up SUI-native `Display` objects for the Pokemon NFT.
+/// This allows external apps (like explorers and wallets) to render the NFTs correctly.
 #[allow(lint(share_owned))]
 public fun init_game_with_display<T>(publisher: &package::Publisher, ctx: &mut TxContext) {
     let mut fields = vector::empty<String>();
@@ -406,6 +445,8 @@ fun get_pokemon_name(id: u32): String {
 // Core Game Logic
 // =========================================================================
 
+/// Allows a trainer to purchase one or more Pokeballs.
+/// Deducts payment from the provided `payment` coin and transfers the Pokeballs to the sender.
 #[allow(lint(self_transfer))]
 public fun purchase_pokeballs<T>(
     config: &mut GameConfig<T>,
@@ -416,9 +457,11 @@ public fun purchase_pokeballs<T>(
     let total_price = config.price * quantity;
     assert!(coin::value(&payment) >= total_price, EInvalidPayment);
 
+    // Take exactly the total price from the payment coin and add it to the treasury
     let paid = coin::split(&mut payment, total_price, ctx);
     balance::join(&mut config.treasury, coin::into_balance(paid));
 
+    // Refund any remaining change to the sender
     if (coin::value(&payment) > 0) {
         transfer::public_transfer(payment, ctx.sender());
     } else {
@@ -431,6 +474,7 @@ public fun purchase_pokeballs<T>(
         total_price_paid: total_price,
     });
 
+    // Create and transfer the requested quantity of Pokeballs
     let mut i = 0;
     while (i < quantity) {
         transfer::transfer(Pokeball { id: object::new(ctx) }, ctx.sender());
@@ -438,6 +482,9 @@ public fun purchase_pokeballs<T>(
     };
 }
 
+/// An atomic operation to purchase Pokeballs and immediately use them to catch Pokemon.
+/// Guarantees that the session remains atomic and secure.
+/// Requires the `Random` object for fair, on-chain outcomes.
 #[allow(lint(self_transfer))]
 entry fun purchase_and_catch_pokemon<T>(
     config: &mut GameConfig<T>,
@@ -452,9 +499,11 @@ entry fun purchase_and_catch_pokemon<T>(
 
     assert!(coin::value(&payment_coin) >= total_price, EInvalidPayment);
 
+    // Process payment
     let paid = coin::split(&mut payment_coin, total_price, ctx);
     balance::join(&mut config.treasury, coin::into_balance(paid));
 
+    // Refund change
     if (coin::value(&payment_coin) > 0) {
         transfer::public_transfer(payment_coin, ctx.sender());
     } else {
@@ -467,6 +516,7 @@ entry fun purchase_and_catch_pokemon<T>(
         total_price_paid: total_price,
     });
 
+    // Generate ephemeral Pokeballs to satisfy the catch_pokemon_internal logic
     let mut i = 0;
     while (i < quantity) {
         vector::push_back(&mut pokeballs, Pokeball { id: object::new(ctx) });
@@ -476,6 +526,7 @@ entry fun purchase_and_catch_pokemon<T>(
     catch_pokemon_internal(pokeballs, config, r, ctx);
 }
 
+/// Uses one Pokeball from the user's inventory to catch a random Pokemon.
 #[allow(lint(self_transfer))]
 entry fun catch_pokemon<T>(
     pokeball: Pokeball,
@@ -488,6 +539,8 @@ entry fun catch_pokemon<T>(
     catch_pokemon_internal(pokeballs, config, r, ctx);
 }
 
+/// Uses multiple Pokeballs from the user's inventory in a single batch operation.
+/// Providing multiple Pokeballs increases efficiency and saves gas for large catching sessions.
 #[allow(lint(self_transfer))]
 entry fun catch_pokemons<T>(
     pokeballs: vector<Pokeball>,
@@ -498,6 +551,8 @@ entry fun catch_pokemons<T>(
     catch_pokemon_internal(pokeballs, config, r, ctx);
 }
 
+/// The internal implementation of the Pokemon catching logic.
+/// Handles rarity determination, stat generation, and the "pity" mechanic.
 #[allow(lint(self_transfer))]
 fun catch_pokemon_internal<T>(
     mut pokeballs: vector<Pokeball>,
@@ -508,6 +563,7 @@ fun catch_pokemon_internal<T>(
     let trainer = ctx.sender();
     let mut gen = random::new_generator(r, ctx);
 
+    // Retrieve or initialize the user's pity counter (stored as a dynamic field on GameConfig)
     let mut pity = if (dynamic_field::exists_(&config.id, trainer)) {
         *dynamic_field::borrow<address, u64>(&config.id, trainer)
     } else {
@@ -517,35 +573,40 @@ fun catch_pokemon_internal<T>(
     let len = vector::length(&pokeballs);
     let mut idx = 0;
 
+    // Process each Pokeball in the vector
     while (idx < len) {
         let pokeball_obj = vector::pop_back(&mut pokeballs);
         let Pokeball { id } = pokeball_obj;
-        object::delete(id);
+        object::delete(id); // Consume the Pokeball object
 
+        // Rarity Logic with Pity Mechanism
+        // Pity triggers if the user has failed to get a Legendary for 30 catches.
         let pity_trigger = pity >= (PITY_THRESHOLD - 1);
         let rarity = if (pity_trigger) {
-            pity = 0;
+            pity = 0; // Reset pity after getting the Legendary
             RARITY_LEGENDARY
         } else {
             let roll = random::generate_u8_in_range(&mut gen, 0, 99);
             let w1 = config.weight_common;
             let w2 = w1 + config.weight_rare;
             let w3 = w2 + config.weight_epic;
+            
             if (roll < w1) {
-                pity = pity + 1;
+                pity = pity + 1; // Increment pity on common catch
                 RARITY_COMMON
             } else if (roll < w2) {
-                pity = pity + 1;
+                pity = pity + 1; // Increment pity on rare catch
                 RARITY_RARE
             } else if (roll < w3) {
-                pity = pity + 1;
+                pity = pity + 1; // Increment pity on epic catch
                 RARITY_EPIC
             } else {
-                pity = 0;
+                pity = 0; // Reset pity if the user naturally hits a Legendary
                 RARITY_LEGENDARY
             }
         };
 
+        // Determine the level based on rarity tier
         let level = if (rarity == RARITY_COMMON) {
             random::generate_u8_in_range(&mut gen, COMMON_LEVEL_MIN, COMMON_LEVEL_MAX)
         } else if (rarity == RARITY_RARE) {
@@ -556,6 +617,7 @@ fun catch_pokemon_internal<T>(
             random::generate_u8_in_range(&mut gen, LEGENDARY_LEVEL_MIN, LEGENDARY_LEVEL_MAX)
         };
 
+        // Determine stat ranges based on rarity
         let stat_min = if (rarity == RARITY_COMMON) { COMMON_STAT_MIN } else if (
             rarity == RARITY_RARE
         ) { RARE_STAT_MIN } else if (rarity == RARITY_EPIC) { EPIC_STAT_MIN } else {
@@ -568,6 +630,7 @@ fun catch_pokemon_internal<T>(
             LEGENDARY_STAT_MAX
         };
 
+        // Generate individual stats using on-chain randomness
         let hp = random::generate_u8_in_range(&mut gen, stat_min, stat_max);
         let attack = random::generate_u8_in_range(&mut gen, stat_min, stat_max);
         let defense = random::generate_u8_in_range(&mut gen, stat_min, stat_max);
@@ -575,6 +638,7 @@ fun catch_pokemon_internal<T>(
         let sp_defense = random::generate_u8_in_range(&mut gen, stat_min, stat_max);
         let speed = random::generate_u8_in_range(&mut gen, stat_min, stat_max);
 
+        // Select a specific Pokemon ID from the corresponding rarity pool
         let pokemon_id = if (rarity == RARITY_COMMON) {
             let len = vector::length(&COMMON_POKEMON);
             let idx = random::generate_u32_in_range(&mut gen, 0, (len - 1) as u32);
@@ -595,13 +659,14 @@ fun catch_pokemon_internal<T>(
 
         let name = get_pokemon_name(pokemon_id);
 
-        // Generate Image URL dynamically
+        // Dynamically build the sprite image URL using the PokeAPI GitHub repository
         let mut img = string::utf8(
             b"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/",
         );
         string::append(&mut img, u32_to_string(pokemon_id));
         string::append(&mut img, string::utf8(b".png"));
 
+        // Create the official Pokemon NFT
         let pokemon = Pokemon {
             id: object::new(ctx),
             pokemon_id,
@@ -615,12 +680,12 @@ fun catch_pokemon_internal<T>(
             sp_defense,
             speed,
             image_url: img,
-            caught_at: ctx.epoch(),
+            caught_at: ctx.epoch(), // Uses current Sui epoch for timestamping
             original_trainer: trainer,
             last_sender: trainer,
         };
 
-        // Upgraded Event Emission
+        // Emit event for off-chain indexing and UI feedback
         event::emit(PokemonCaught {
             object_id: object::id(&pokemon),
             pokemon_id: pokemon.pokemon_id,
@@ -638,12 +703,14 @@ fun catch_pokemon_internal<T>(
             last_sender: trainer,
         });
 
+        // Transfer the NFT to the user
         transfer::public_transfer(pokemon, trainer);
         idx = idx + 1;
     };
 
     vector::destroy_empty(pokeballs);
 
+    // Persistent storage of the user's pity state
     if (dynamic_field::exists_(&config.id, trainer)) {
         *dynamic_field::borrow_mut<address, u64>(&mut config.id, trainer) = pity;
     } else {
@@ -655,10 +722,12 @@ fun catch_pokemon_internal<T>(
 // Utility Functions
 // =========================================================================
 
+/// Returns the basic summary of a Pokemon.
 public fun get_item_stats(pokemon: &Pokemon): (String, u8, u8) {
     (pokemon.name, pokemon.rarity_tier, pokemon.level)
 }
 
+/// Returns the full list of battle stats for a Pokemon.
 public fun get_pokemon_stats(pokemon: &Pokemon): (u8, u8, u8, u8, u8, u8) {
     (
         pokemon.hp,
@@ -670,6 +739,8 @@ public fun get_pokemon_stats(pokemon: &Pokemon): (u8, u8, u8, u8, u8, u8) {
     )
 }
 
+/// Safely transfers a Pokemon to a new recipient address.
+/// Updates the `last_sender` field for tracking purposes.
 entry fun transfer_pokemon(
     mut pokemon: Pokemon,
     recipient: address,
@@ -679,6 +750,8 @@ entry fun transfer_pokemon(
     transfer::public_transfer(pokemon, recipient);
 }
 
+/// Permanently destroys a Pokemon NFT.
+/// This action is irreversible.
 public fun burn_pokemon(pokemon: Pokemon) {
     let Pokemon {
         id,
@@ -704,6 +777,9 @@ public fun burn_pokemon(pokemon: Pokemon) {
 // Admin Functions
 // =========================================================================
 
+/// Updates the rarity weights for the game.
+/// Must be signed by the owner of the `AdminCap`.
+/// Asserts that the sum of all weights equals 100%.
 public fun update_weights<T>(
     config: &mut GameConfig<T>,
     _cap: &AdminCap,
@@ -719,6 +795,8 @@ public fun update_weights<T>(
     config.weight_legendary = legendary;
 }
 
+/// Withdraws accumulated funds from the game treasury.
+/// Must be signed by the owner of the `AdminCap`.
 public fun withdraw_treasury<T>(
     config: &mut GameConfig<T>,
     _cap: &AdminCap,

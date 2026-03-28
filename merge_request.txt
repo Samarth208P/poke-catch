@@ -1,0 +1,143 @@
+# 🚀 Merge Request: PokeCatch — On-Chain Pokemon Loot Box Game
+
+## 🧠 Overview
+This MR implements a complete loot box system on Sui blockchain as per Problem Statement #2 (Gaming).
+
+Players can:
+- Purchase loot boxes (Pokeballs)
+- Open them using secure on-chain randomness
+- Receive Pokemon NFTs with rarity and stats
+- Transfer and burn NFTs
+- Experience a fairness-guaranteeing pity system
+
+---
+
+## 🔗 Live Links
+
+| Resource | Link |
+|--------|------|
+| 🌐 Live Demo | [pokecatch.vercel.app](https://pokecatch.vercel.app/) |
+| 📦 GitLab Repo | [gitlab.alkimi.org/samarth/pokecatch](https://gitlab.alkimi.org/samarth/pokecatch) |
+| ⛓️ Package ID | [`0x0135...ca0c`](https://suiscan.xyz/testnet/object/0x01359f04eea1ed67e698794f092d280e23ced49ff66e24956c18e31e9e33ca0c) |
+| 🛠️ GameConfig | [`0x4338...8a55`](https://suiscan.xyz/testnet/object/0x43384ff4b2512484311015ea975dee9232ae3443aa04be99dd3d0b9b9bb0a8a5) |
+| 📜 Initial Tx | [`8rCF...JwAP`](https://suiscan.xyz/testnet/tx/8rCFQkJ1E63mmsCb7peX24oE7dxbjrFnbytJY29nJwAP) |
+
+---
+
+## 📦 Deployed Objects
+
+| Object | ID | Type | Description |
+|------|----|------|------------|
+| GameConfig | [`0x4338...8a55`](https://suiscan.xyz/testnet/object/0x43384ff4b2512484311015ea975dee9232ae3443aa04be99dd3d0b9b9bb0a8a5) | Shared Object | Stores price, weights, treasury |
+| AdminCap | [`0xc79d...cc64`](https://suiscan.xyz/testnet/object/0xc79d2bb69d1f6610b94b390804d4d7b91f1307d63aee3c4bbae7c40aeeb7cc64) | Owned | Admin control capability |
+| Pokeball | Owned | Loot box object |
+| Pokemon | NFT | Generated game item |
+
+---
+
+## 🏗️ Features Implemented
+
+| Feature | Status |
+|--------|--------|
+| Loot Box Purchase | ✅ |
+| On-chain RNG (sui::random) | ✅ |
+| NFT Minting | ✅ |
+| Rarity System | ✅ |
+| Stat Generation | ✅ |
+| Transfer + Burn | ✅ |
+| Events | ✅ |
+| Admin Controls | ✅ |
+| Pity System (Bonus) | ✅ |
+
+---
+
+## 🎲 Randomness Implementation
+
+```move
+let mut gen = random::new_generator(r, ctx);
+let roll = random::generate_u8_in_range(&mut gen, 0, 99);
+```
+
+---
+
+## 🎯 Rarity Distribution
+
+| Tier | Weight | Level Range |
+|------|-------|------------|
+| Common | 60 | 1–10 |
+| Rare | 25 | 11–25 |
+| Epic | 12 | 26–40 |
+| Legendary | 3 | 41–50 |
+
+---
+
+## ⚡ Core Functions
+
+| Function | Description |
+|---------|------------|
+| init_game | Initializes game config |
+| purchase_pokeballs | Buy loot boxes |
+| catch_pokemon | Open box |
+| purchase_and_catch_pokemon | Combined UX |
+| transfer_pokemon | Transfer NFT |
+| burn_pokemon | Destroy NFT |
+| update_weights | Admin control |
+
+---
+
+## 📢 Events
+
+| Event | Description |
+|------|------------|
+| PokemonCaught | Emitted on mint |
+| PokeballsPurchased | Emitted on purchase |
+
+---
+
+## 🧪 Testing
+
+| Test Case | Status |
+|----------|--------|
+| Initialization | ✅ |
+| Purchase | ✅ |
+| RNG correctness | ✅ |
+| Transfer | ✅ |
+| Burn | ✅ |
+| Pity system | ✅ |
+
+---
+
+## 🛡️ Security
+
+- Entry functions for RNG safety
+- AdminCap gated admin functions
+- Atomic transactions
+- No external randomness dependency
+
+---
+
+## ✅ Checklist (Problem Statement Compliance)
+
+| Requirement | Status |
+|------------|--------|
+| On-chain randomness (sui::random) | ✅ |
+| Entry function for opening | ✅ |
+| NFT creation | ✅ |
+| Rarity tiers | ✅ |
+| Transfer functionality | ✅ |
+| Burn functionality | ✅ |
+| Events emitted | ✅ |
+| Shared GameConfig | ✅ |
+| AdminCap usage | ✅ |
+| Testing coverage | ✅ |
+| Pity system (bonus) | ✅ |
+
+---
+
+## 🧠 Summary
+
+- Fully on-chain implementation
+- Secure RNG
+- NFT-based game economy
+- Production-ready frontend
+- Bonus features implemented
