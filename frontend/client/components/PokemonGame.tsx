@@ -165,6 +165,13 @@ export function PokemonGame({
     });
   }, [caughtPokemon, sortBy]);
 
+  const uniqueCaughtCount = useMemo(() => {
+    const uniqueIds = new Set(caughtPokemon.map((p) => p.pokemonId));
+    return uniqueIds.size;
+  }, [caughtPokemon]);
+
+  const collectionProgress = (uniqueCaughtCount / 151) * 100;
+
   const handleCatchPokemon = async (quantity: number = 1) => {
     if (!account || !config) return toast.error("Game not loaded.");
 
@@ -478,9 +485,23 @@ export function PokemonGame({
                   <h2 className="text-xl sm:text-2xl font-black text-slate-800 uppercase tracking-widest leading-none mb-1">
                     {isViewingOwnPC ? "My PC Box" : "Friend's PC"}
                   </h2>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-md border-2 border-slate-200">
-                    {caughtPokemon.length} Pokémon Stored
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-md border-2 border-slate-200">
+                      {caughtPokemon.length} Stored
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
+                            <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${collectionProgress}%` }}
+                                className="h-full bg-blue-500"
+                            />
+                        </div>
+                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">
+                            {uniqueCaughtCount}/151 DEX
+                        </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
