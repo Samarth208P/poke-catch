@@ -1,34 +1,34 @@
 #[allow(implicit_const_copy, lint(self_transfer))]
 
-/// # Pokemon Loot Box Game Contract
-///
-/// A secure, on-chain loot box system built on Sui blockchain that implements
-/// the Alkimi Hackathon Problem Statement #2: Gaming requirements.
-///
-/// ## Overview
-/// Players purchase Pokeballs (loot boxes) and open them to catch Pokemon NFTs
-/// with varying rarity tiers and power levels. The system uses Sui's native
-/// on-chain randomness for fair, tamper-proof outcomes.
-///
-/// ## Key Features
-/// - **Secure Randomness**: Uses `sui::random` with entry function protection
-/// - **4-Tier Rarity System**: Common (60%), Rare (25%), Epic (12%), Legendary (3%)
-/// - **Power-Based Levels**: Pokemon levels determine power (1-50 range)
-/// - **Pity System**: Guarantees Legendary after 30 consecutive non-Legendary catches
-/// - **Atomic Transactions**: Purchase and catch in single secure operations
-/// - **Transferable NFTs**: Pokemon can be traded between players
-/// - **Admin Controls**: Rarity weights and treasury management
-///
-/// ## Security Design
-/// - Entry functions prevent randomness inspection attacks
-/// - RandomGenerator created locally within consuming functions
-/// - No external contracts can influence random outcomes
-/// - Admin operations require AdminCap ownership
-///
-/// ## Economic Model
-/// - Fixed price: 0.01 SUI per Pokeball
-/// - Treasury accumulates all payments
-/// - Admin can withdraw treasury funds
+/* # Pokemon Loot Box Game Contract
+
+ A secure, on-chain loot box system built on Sui blockchain that implements
+ the Alkimi Hackathon Problem Statement #2: Gaming requirements.
+
+ ## Overview
+ Players purchase Pokeballs (loot boxes) and open them to catch Pokemon NFTs
+ with varying rarity tiers and power levels. The system uses Sui's native
+ on-chain randomness for fair, tamper-proof outcomes.
+
+ ## Key Features
+ - **Secure Randomness**: Uses `sui::random` with entry function protection
+ - **4-Tier Rarity System**: Common (60%), Rare (25%), Epic (12%), Legendary (3%)
+ - **Power-Based Levels**: Pokemon levels determine power (1-50 range)
+ - **Pity System**: Guarantees Legendary after 30 consecutive non-Legendary catches
+ - **Atomic Transactions**: Purchase and catch in single secure operations
+ - **Transferable NFTs**: Pokemon can be traded between players
+ - **Admin Controls**: Rarity weights and treasury management
+
+ ## Security Design
+ - Entry functions prevent randomness inspection attacks
+ - RandomGenerator created locally within consuming functions
+ - No external contracts can influence random outcomes
+ - Admin operations require AdminCap ownership
+
+ ## Economic Model
+ - Fixed price: 0.01 SUI per Pokeball
+ - Treasury accumulates all payments
+ - Admin can withdraw treasury funds */
 module loot_box_v2::pokemon;
 
 use std::string::{Self, String};
@@ -146,27 +146,23 @@ public struct PokeballsPurchased has copy, drop {
 // =========================================================================
 
 const COMMON_POKEMON: vector<u32> = vector[
-    10, 11, 13, 14, 16, 17, 19, 20, 21, 22, 23, 24, 25, 27, 28, 29, 30, 32, 33,
-    35, 37, 39, 41, 42, 43, 44, 46, 47, 48, 50, 51, 52, 54, 56, 57, 58, 60, 61,
-    63, 64, 66, 67, 69, 70, 72, 74, 75, 77, 79, 81, 84, 86, 88, 90, 92, 93, 95,
-    96, 98, 100, 102, 104, 109, 111, 116, 118, 120, 129
+    10, 11, 13, 14, 16, 17, 19, 20, 21, 22, 23, 24, 25, 27, 28, 29, 30, 32, 33, 35, 37, 39, 41, 42,
+    43, 44, 46, 47, 48, 50, 51, 52, 54, 56, 57, 58, 60, 61, 63, 64, 66, 67, 69, 70, 72, 74, 75, 77,
+    79, 81, 84, 86, 88, 90, 92, 93, 95, 96, 98, 100, 102, 104, 109, 111, 116, 118, 120, 129,
 ];
 
 const RARE_POKEMON: vector<u32> = vector[
-    12, 15, 18, 26, 31, 34, 36, 38, 40, 45, 49, 53, 55, 59, 62, 65, 68, 71, 73,
-    76, 78, 80, 82, 83, 85, 87, 89, 91, 94, 97, 99, 101, 103, 105, 106, 107, 108,
-    110, 112, 113, 114, 115, 117, 119, 121, 122, 123, 124, 125, 126, 127, 128,
-    130, 132
+    12, 15, 18, 26, 31, 34, 36, 38, 40, 45, 49, 53, 55, 59, 62, 65, 68, 71, 73, 76, 78, 80, 82, 83,
+    85, 87, 89, 91, 94, 97, 99, 101, 103, 105, 106, 107, 108, 110, 112, 113, 114, 115, 117, 119, 121,
+    122, 123, 124, 125, 126, 127, 128, 130, 132,
 ];
 
 const EPIC_POKEMON: vector<u32> = vector[
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 131, 133, 134, 135, 136, 137, 138, 139, 140, 141,
-    142, 143, 147, 148, 149
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 131, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 147, 148,
+    149,
 ];
 
-const LEGENDARY_POKEMON: vector<u32> = vector[
-    144, 145, 146, 150, 151
-];
+const LEGENDARY_POKEMON: vector<u32> = vector[144, 145, 146, 150, 151];
 
 const COMMON_STAT_MIN: u8 = 20;
 const COMMON_STAT_MAX: u8 = 50;
@@ -590,7 +586,7 @@ fun catch_pokemon_internal<T>(
             let w1 = config.weight_common;
             let w2 = w1 + config.weight_rare;
             let w3 = w2 + config.weight_epic;
-            
+
             if (roll < w1) {
                 pity = pity + 1; // Increment pity on common catch
                 RARITY_COMMON
@@ -741,11 +737,7 @@ public fun get_pokemon_stats(pokemon: &Pokemon): (u8, u8, u8, u8, u8, u8) {
 
 /// Safely transfers a Pokemon to a new recipient address.
 /// Updates the `last_sender` field for tracking purposes.
-entry fun transfer_pokemon(
-    mut pokemon: Pokemon,
-    recipient: address,
-    ctx: &TxContext
-) {
+entry fun transfer_pokemon(mut pokemon: Pokemon, recipient: address, ctx: &TxContext) {
     pokemon.last_sender = ctx.sender();
     transfer::public_transfer(pokemon, recipient);
 }
