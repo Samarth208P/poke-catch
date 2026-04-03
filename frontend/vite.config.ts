@@ -8,13 +8,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    proxy: {
-      "/api/sui-proxy": {
-        target: "https://fullnode.testnet.sui.io",
-        changeOrigin: true,
-        rewrite: () => "/",
-      },
-    },
     fs: {
       allow: [".", "./client", "./shared", "./node_modules"],
       deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "server/**"],

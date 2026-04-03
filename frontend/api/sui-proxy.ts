@@ -1,6 +1,9 @@
-const SUI_RPC_URL = "https://fullnode.testnet.sui.io";
+const SUI_RPC_URLS = [
+  "https://sui-testnet-rpc.publicnode.com",
+  "https://sui-testnet.nodeinfra.com",
+  "https://fullnode.testnet.sui.io:443",
+];
 
-// Vercel serverless functions extend the standard request with a pre-parsed `body`.
 export default async function handler(req: any, res: any) {
   // Set CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -17,22 +20,30 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  try {
-    // Vercel auto-parses the body — stringify it back for the upstream request
-    const body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+  const body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
 
-    const response = await fetch(SUI_RPC_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-    });
+  for (const rpcUrl of SUI_RPC_URLS) {
+    try {
+      const response = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
 
-    const data = await response.text();
+      const data = await response.text();
 
-    res.setHeader("Content-Type", "application/json");
-    return res.status(response.status).end(data);
-  } catch (error) {
-    console.error("Sui proxy error:", error);
-    return res.status(502).json({ error: "Failed to proxy request to Sui fullnode" });
+      if (response.status >= 500) {
+        console.warn(`RPC ${rpcUrl} returned ${response.status}, trying next...`);
+        continue;
+      }
+
+      res.setHeader("Content-Type", "application/json");
+      return res.status(response.status).end(data);
+    } catch (error) {
+      console.warn(`RPC ${rpcUrl} failed:`, error);
+      continue;
+    }
   }
+
+  return res.status(502).json({ error: "All Sui RPC endpoints are unavailable" });
 }
