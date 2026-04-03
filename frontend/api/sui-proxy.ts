@@ -1,8 +1,7 @@
-import type { IncomingMessage, ServerResponse } from "http";
-
 const SUI_RPC_URL = "https://fullnode.testnet.sui.io";
 
-export default async function handler(req: IncomingMessage, res: ServerResponse) {
+// Vercel serverless functions extend the standard request with a pre-parsed `body`.
+export default async function handler(req: any, res: any) {
   // Set CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -10,47 +9,30 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
   // Handle preflight
   if (req.method === "OPTIONS") {
-    res.statusCode = 204;
-    res.end();
-    return;
+    return res.status(204).end();
   }
 
-  // Only allow POST requests (JSON-RPC uses POST)
+  // Only allow POST (JSON-RPC uses POST)
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST, OPTIONS");
-    res.statusCode = 405;
-    res.end(JSON.stringify({ error: "Method not allowed" }));
-    return;
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    // Read request body
-    const body = await new Promise<string>((resolve, reject) => {
-      let data = "";
-      req.on("data", (chunk: Buffer) => {
-        data += chunk.toString();
-      });
-      req.on("end", () => resolve(data));
-      req.on("error", reject);
-    });
+    // Vercel auto-parses the body — stringify it back for the upstream request
+    const body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
 
     const response = await fetch(SUI_RPC_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body,
     });
 
     const data = await response.text();
 
-    res.statusCode = response.status;
     res.setHeader("Content-Type", "application/json");
-    res.end(data);
+    return res.status(response.status).end(data);
   } catch (error) {
     console.error("Sui proxy error:", error);
-    res.statusCode = 502;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ error: "Failed to proxy request to Sui fullnode" }));
+    return res.status(502).json({ error: "Failed to proxy request to Sui fullnode" });
   }
 }
