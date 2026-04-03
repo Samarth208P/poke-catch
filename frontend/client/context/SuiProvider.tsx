@@ -5,16 +5,12 @@ import "@mysten/dapp-kit/dist/index.css";
 
 const queryClient = new QueryClient();
 
-// In production (Vercel), use our proxy to avoid CORS issues.
-// In development, the direct URL works fine.
-const suiRpcUrl =
-    import.meta.env.PROD
-        ? "/api/sui-proxy"
-        : "https://fullnode.testnet.sui.io";
-
+// Always use the proxy path to avoid CORS issues.
+// Dev: Vite proxy forwards to fullnode.testnet.sui.io
+// Prod: Vercel serverless function forwards to fullnode.testnet.sui.io
 const { networkConfig } = createNetworkConfig({
     testnet: {
-        url: suiRpcUrl,
+        url: "/api/sui-proxy",
     },
 });
 
